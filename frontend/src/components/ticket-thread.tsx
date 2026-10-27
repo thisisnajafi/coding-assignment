@@ -32,9 +32,26 @@ export function ThreadSkeleton() {
 
 /**
  * Chat-style conversation for one ticket. Messages are untrusted text and are
- * rendered as plain text only. The viewer's own role is shown on the start side (right in RTL).
+ * rendered as plain text only. Employee bubbles are on the start (right) side, IT on the end side.
  */
-export function TicketThread({ username, ticketId, viewerRole }: { username: string; ticketId: number; viewerRole: "employee" | "it" }) {
+export function TicketThread({
+  username,
+  ticketId,
+  viewerRole,
+  beforeComposer,
+  draft,
+  refreshKey = 0,
+}: {
+  username: string;
+  ticketId: number;
+  viewerRole: "employee" | "it";
+  /** Rendered between the messages and the composer (IT: the AI suggestion panel). */
+  beforeComposer?: React.ReactNode;
+  /** Text to place in the composer; a new nonce re-applies it. */
+  draft?: { text: string; nonce: number } | null;
+  /** Changing this reloads the messages (e.g. after a message was sent elsewhere). */
+  refreshKey?: number;
+}) {
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -57,6 +74,17 @@ export function TicketThread({ username, ticketId, viewerRole }: { username: str
     setText("");
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (refreshKey) load();
+  }, [refreshKey, load]);
+
+  useEffect(() => {
+    if (!draft) return;
+    setText(draft.text);
+    inputRef.current?.focus();
+    inputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [draft]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -112,16 +140,18 @@ export function TicketThread({ username, ticketId, viewerRole }: { username: str
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.18 }}
-                className={cn("flex", m.role === viewerRole ? "justify-start" : "justify-end")}
+                className={cn("flex", m.role === "employee" ? "justify-start" : "justify-end")}
               >
-                <Bubble message={m} own={m.role === viewerRole} onReply={() => startReply(m)} />
+                <Bubble message={m} onReply={() => startReply(m)} />
               </motion.li>
             ))}
           </AnimatePresence>
         </ol>
       )}
 
-      <form onSubmit={send} className="space-y-2" aria-busy={busy}>
+      {beforeComposer}
+
+      <form onSubmit={send} className="space-y-2 border-t pt-3" aria-busy={busy}>
         {replyTo && (
           <div data-testid="reply-chip" className="flex items-start justify-between gap-2 rounded-lg border-s-4 border-primary bg-muted/60 px-3 py-2 text-xs">
             <div className="min-w-0">
@@ -145,31 +175,32 @@ export function TicketThread({ username, ticketId, viewerRole }: { username: str
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send(e);
           }}
-          placeholder="پیام خود را بنویسید… (Ctrl+Enter برای ارسال)"
+          placeholder={viewerRole === "it" ? "پاسخ به کاربر… (Ctrl+Enter برای ارسال)" : "پیام خود را بنویسید… (Ctrl+Enter برای ارسال)"}
         />
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
+        <div className="flex items-center justify-between gap-3">
+          <Button type="submit" size="sm" disabled={busy || !text.trim()} className="disabled:cursor-not-allowed disabled:opacity-40">
+            {busy ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}
+            {busy ? "در حال ارسال…" : "ارسال پیام"}
+          </Button>
+          <span data-testid="composer-counter" dir="ltr" className="text-xs tabular-nums text-muted-foreground">
             {text.length.toLocaleString("fa-IR")} / {MAX_LEN.toLocaleString("fa-IR")}
           </span>
-          <Button type="submit" size="sm" disabled={busy || !text.trim()}>
-            {busy ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}
-            ارسال پیام
-          </Button>
         </div>
       </form>
     </section>
   );
 }
 
-function Bubble({ message: m, own, onReply }: { message: Message; own: boolean; onReply: () => void }) {
+function Bubble({ message: m, onReply }: { message: Message; onReply: () => void }) {
   const it = m.role === "it";
   return (
     <div
       data-testid="thread-message"
       className={cn(
-        "group max-w-[85%] space-y-1 rounded-2xl px-3 py-2 text-sm shadow-xs",
+        "group w-fit min-w-[45%] max-w-[85%] space-y-1.5 rounded-2xl px-3 py-2 text-sm shadow-xs",
         it ? "bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-50" : "bg-sky-50 text-sky-950 dark:bg-sky-950/40 dark:text-sky-50",
-        own ? "rounded-ss-sm" : "rounded-se-sm",
+        // Employee bubbles sit on the start (right) side, IT on the end (left) side.
+        it ? "rounded-se-sm" : "rounded-ss-sm",
         m.is_final && "ring-1 ring-emerald-400",
       )}
     >
@@ -192,7 +223,7 @@ function Bubble({ message: m, own, onReply }: { message: Message; own: boolean; 
         </div>
       )}
       <PlainText text={m.body} className="leading-7" />
-      <div className="flex items-center justify-between gap-3 text-[11px] opacity-70">
+      <div className="flex items-center justify-between gap-3 border-t border-current/10 pt-1 text-[11px] opacity-70">
         <time dateTime={m.created_at}>{formatDate(m.created_at)}</time>
         <button
           type="button"

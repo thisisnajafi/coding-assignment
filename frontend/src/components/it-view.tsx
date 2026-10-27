@@ -3,30 +3,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { ArrowRight, Inbox, Loader2, MousePointerClick, RefreshCw, Search, SearchX, Send, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Inbox, Loader2, MousePointerClick, RefreshCw, Search, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/native-select";
-import { PlainText } from "@/components/plain-text";
-import { FinalReply } from "@/components/final-reply";
 import { TicketBody } from "@/components/ticket-body";
 import { TicketMeta } from "@/components/ticket-meta";
 import { TicketThread } from "@/components/ticket-thread";
-import { ModelPicker } from "@/components/model-picker";
-import { DEFAULT_GROUPS, type ModelGroup } from "@/lib/models";
-import { SourceBadge, TicketBadges } from "@/components/ticket-badges";
-import { EmptyState, ErrorState, DetailSkeleton, ListSkeleton, SuggestionSkeleton } from "@/components/states";
+import { SuggestionPanel } from "@/components/suggestion-panel";
+import { TicketBadges } from "@/components/ticket-badges";
+import { EmptyState, ErrorState, DetailSkeleton, ListSkeleton } from "@/components/states";
 import { api } from "@/lib/api";
-import { CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from "@/lib/labels";
+import { CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS, formatDate } from "@/lib/labels";
 import { useTickets } from "@/lib/use-tickets";
 import { cn } from "@/lib/utils";
 import type { Status, Ticket } from "@/lib/types";
-
-const DEFAULT_MODEL = "gpt-4o";
 
 export function ItView({ username }: { username: string }) {
   const { tickets, error, loading, reload, upsert } = useTickets(username);
@@ -192,173 +186,87 @@ export function TicketDetail({
   onChange: (t: Ticket) => void;
   onBack?: () => void;
 }) {
-  const [groups, setGroups] = useState<ModelGroup[]>(DEFAULT_GROUPS);
-  const [model, setModel] = useState(DEFAULT_MODEL);
-  const [modelsLoading, setModelsLoading] = useState(true);
-  const [reply, setReply] = useState(ticket.final_reply || ticket.suggested_reply || "");
-  const [busy, setBusy] = useState<null | "status" | "suggest" | "reply">(null);
-  const replied = Boolean(ticket.final_reply);
+  const [statusBusy, setStatusBusy] = useState(false);
+  // Text pushed from the suggestion panel into the thread composer (nonce forces re-apply).
+  const [draft, setDraft] = useState<{ text: string; nonce: number } | null>(null);
+  const [threadVersion, setThreadVersion] = useState(0);
 
-  useEffect(() => {
-    api
-      .models(username)
-      .then(({ models: list, default: def, groups: g }) => {
-        if (!list.length) return;
-        setGroups(g);
-        setModel(list.includes(DEFAULT_MODEL) ? DEFAULT_MODEL : def && list.includes(def) ? def : list[0]);
-      })
-      .catch(() => {
-        /* keep default model list */
-      })
-      .finally(() => setModelsLoading(false));
-  }, [username]);
+  useEffect(() => setDraft(null), [ticket.id]);
 
-  useEffect(() => {
-    setReply(ticket.final_reply || ticket.suggested_reply || "");
-    // Reset the draft only when switching tickets.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticket.id]);
-
-  async function run<T>(kind: "status" | "suggest" | "reply", fn: () => Promise<T>, ok: string) {
-    setBusy(kind);
+  async function changeStatus(status: Status) {
+    setStatusBusy(true);
     try {
-      const t = await fn();
-      if (t && typeof t === "object" && "id" in t) onChange(t as unknown as Ticket);
-      else onChange(await api.getTicket(username, ticket.id));
-      toast.success(ok);
-      return true;
+      onChange(await api.setStatus(username, ticket.id, status));
+      toast.success("وضعیت بروزرسانی شد.");
     } catch (e) {
-      toast.error("عملیات ناموفق بود.", { description: e instanceof Error ? e.message : undefined });
-      return false;
+      toast.error("تغییر وضعیت ناموفق بود.", { description: e instanceof Error ? e.message : undefined });
     } finally {
-      setBusy(null);
-    }
-  }
-
-  async function regenerate() {
-    setBusy("suggest");
-    try {
-      const t = await api.regenerate(username, ticket.id, model);
-      onChange(t);
-      if (!replied) setReply(t.suggested_reply || "");
-      toast.success(t.suggestion_source === "fallback" ? "سرویس AI در دسترس نبود؛ پاسخ جایگزین تولید شد." : "پیشنهاد جدید تولید شد.");
-    } catch (e) {
-      toast.error("تولید پیشنهاد ناموفق بود.", { description: e instanceof Error ? e.message : undefined });
-    } finally {
-      setBusy(null);
+      setStatusBusy(false);
     }
   }
 
   return (
-    <Card>
-      <CardHeader className="space-y-2">
+    <Card data-testid="ticket-detail">
+      <CardHeader className="space-y-3">
         {onBack && (
           <Button variant="ghost" size="sm" className="w-fit lg:hidden" onClick={onBack}>
-            <ArrowRight /> بازگشت به فهرست
+            <ArrowRight aria-hidden /> بازگشت به فهرست
           </Button>
         )}
-        <CardTitle dir="auto" className="break-words text-lg leading-8">{ticket.title}</CardTitle>
-        <TicketMeta id={ticket.id} owner={ticket.owner} createdAt={ticket.created_at} />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <CardTitle dir="auto" className="break-words text-lg leading-8">{ticket.title}</CardTitle>
+            <TicketMeta id={ticket.id} owner={ticket.owner} createdAt={ticket.created_at} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="status-select" className="text-xs text-muted-foreground">وضعیت</Label>
+            <NativeSelect
+              id="status-select"
+              value={ticket.status}
+              disabled={statusBusy}
+              onChange={(e) => changeStatus(e.target.value as Status)}
+            >
+              {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </NativeSelect>
+            {statusBusy && <Loader2 className="size-4 animate-spin" aria-label="در حال ذخیره" />}
+          </div>
+        </div>
         <TicketBadges ticket={ticket} />
+        {ticket.final_reply && (
+          <p data-testid="final-reply-summary" className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+            <CheckCircle2 className="size-3.5" aria-hidden />
+            پاسخ نهایی{ticket.replied_by ? ` توسط ${ticket.replied_by}` : ""}
+            {ticket.replied_at ? ` در ${formatDate(ticket.replied_at)}` : ""} ارسال شده و در گفتگو مشخص است.
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="rounded-lg bg-muted/40 p-3">
+        <section aria-label="متن تیکت" className="rounded-lg border bg-muted/30 p-3">
           <TicketBody text={ticket.body} className="text-sm" />
-        </div>
-
-        <TicketThread username={username} ticketId={ticket.id} viewerRole="it" />
+        </section>
 
         <Separator />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Label htmlFor="status-select">تغییر وضعیت:</Label>
-          <NativeSelect
-            id="status-select"
-            value={ticket.status}
-            disabled={busy !== null}
-            onChange={(e) =>
-              run("status", () => api.setStatus(username, ticket.id, e.target.value as Status), "وضعیت بروزرسانی شد.")
-            }
-          >
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </NativeSelect>
-          {busy === "status" && <Loader2 className="size-4 animate-spin" />}
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="size-4 text-violet-600" />
-              <span className="font-medium">پیشنهاد پاسخ</span>
-              {ticket.suggestion_source && <SourceBadge source={ticket.suggestion_source} />}
-            </div>
-            <div className="flex items-center gap-2">
-              <ModelPicker groups={groups} value={model} onChange={setModel} loading={modelsLoading} disabled={busy !== null} />
-              <Button variant="outline" size="sm" onClick={regenerate} disabled={busy !== null}>
-                {busy === "suggest" ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-                تولید مجدد
-              </Button>
-            </div>
-          </div>
-          <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 dark:bg-violet-950/20">
-            {busy === "suggest" ? (
-              <SuggestionSkeleton />
-            ) : ticket.suggested_reply ? (
-              <PlainText text={ticket.suggested_reply} className="text-sm" />
-            ) : (
-              <p className="text-sm text-muted-foreground">پیشنهادی وجود ندارد.</p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-            {ticket.suggestion_source === "fallback" && (
-              <span>این متن توسط قواعد پیش‌فرض (بدون هوش مصنوعی) تولید شده است.</span>
-            )}
-            {ticket.suggestion_model && (
-              <span>
-                مدل: <span dir="ltr">{ticket.suggestion_model}</span>
-              </span>
-            )}
-            {ticket.suggestion_note && <PlainText text={ticket.suggestion_note} className="inline" />}
-          </div>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <Label htmlFor="final-reply">پاسخ نهایی</Label>
-          {replied ? (
-            <FinalReply
-              text={ticket.final_reply || ""}
-              repliedAt={ticket.replied_at}
-              repliedBy={ticket.replied_by}
-              note="پاسخ نهایی ارسال شده و قابل ویرایش نیست."
+        <TicketThread
+          username={username}
+          ticketId={ticket.id}
+          viewerRole="it"
+          draft={draft}
+          refreshKey={threadVersion}
+          beforeComposer={
+            <SuggestionPanel
+              username={username}
+              ticket={ticket}
+              onChange={onChange}
+              onUseInReply={(text) => setDraft({ text, nonce: Date.now() })}
+              onSent={() => setThreadVersion((v) => v + 1)}
             />
-          ) : (
-            <>
-              <Textarea id="final-reply" rows={6} value={reply} onChange={(e) => setReply(e.target.value)} placeholder="پاسخ نهایی را بنویسید یا پیشنهاد را ویرایش کنید…" />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  disabled={busy !== null || reply.trim().length < 2}
-                  onClick={() => run("reply", () => api.reply(username, ticket.id, reply.trim()), "پاسخ نهایی ارسال شد.")}
-                >
-                  {busy === "reply" ? <Loader2 className="animate-spin" /> : <Send />}
-                  ارسال پاسخ نهایی
-                </Button>
-                {ticket.suggested_reply && (
-                  <Button variant="ghost" onClick={() => setReply(ticket.suggested_reply || "")}>
-                    استفاده از پیشنهاد
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+          }
+        />
       </CardContent>
     </Card>
   );

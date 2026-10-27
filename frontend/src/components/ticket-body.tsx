@@ -4,8 +4,8 @@ import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const COLLAPSE_CHARS = 220;
-const COLLAPSE_LINES = 4;
+const COLLAPSE_CHARS = 700;
+const COLLAPSE_LINES = 14;
 
 type Segment = { code: boolean; text: string };
 
@@ -44,13 +44,13 @@ export function TicketBody({ text, className, collapsible = true }: { text: stri
 
   return (
     <div className={cn("space-y-1", className)}>
-      <div id={id} data-testid="ticket-body" className={cn("relative space-y-2", collapsed && "max-h-24 overflow-hidden")}>
+      <div id={id} data-testid="ticket-body" className={cn("space-y-2", collapsed && "max-h-60 overflow-hidden")}>
         {splitSegments(text).map((s, i) =>
           s.code ? (
             <pre
               key={i}
               dir="ltr"
-              className="overflow-x-auto whitespace-pre-wrap break-words rounded-md border bg-muted px-3 py-2 text-start font-mono text-xs leading-relaxed text-muted-foreground"
+              className="whitespace-pre-wrap break-all rounded-md border bg-background px-3 py-2 text-left font-mono text-xs leading-relaxed text-foreground"
             >
               {s.text}
             </pre>
@@ -59,9 +59,6 @@ export function TicketBody({ text, className, collapsible = true }: { text: stri
               {s.text}
             </p>
           ),
-        )}
-        {collapsed && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" aria-hidden />
         )}
       </div>
       {long && (

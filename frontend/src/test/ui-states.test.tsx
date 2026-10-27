@@ -47,7 +47,7 @@ describe("loading and empty states", () => {
 
 describe("TicketBody", () => {
   it("collapses long text and expands on demand", async () => {
-    render(<TicketBody text={"خط طولانی ".repeat(60)} />);
+    render(<TicketBody text={"خط طولانی ".repeat(100)} />);
     const toggle = screen.getByRole("button", { name: /نمایش بیشتر/ });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(toggle);
@@ -61,6 +61,7 @@ describe("TicketBody", () => {
     expect(pre).toHaveTextContent("Outlook error 0x800CCC0E.");
     expect(container.querySelector("img")).toBeNull();
     expect(isCodeLike("ایمیل Outlook")).toBe(false);
+    expect(screen.queryByRole("button", { name: /نمایش بیشتر/ })).toBeNull(); // short text is not collapsed
   });
 });
 
