@@ -27,7 +27,7 @@ def _get_visible_ticket(db: Session, ticket_id: int, user: User) -> Ticket:
     return ticket
 
 
-@router.get("/users", response_model=list[UserOut])
+@router.get("/users", response_model=list[UserOut], summary="Demo user picker (DEMO_MODE only, not real auth)")
 def list_demo_users(db: Session = Depends(get_db)):
     """Demo user picker: lists the seeded demo accounts. Only available when DEMO_MODE=true.
 

@@ -56,3 +56,21 @@ def test_demo_mode_off_disables_header_auth_and_picker(client, monkeypatch):
     monkeypatch.setattr(get_settings(), "demo_mode", False)
     assert client.get("/api/users").status_code == 404
     assert client.get("/api/tickets", headers=as_user("it_admin")).status_code == 401
+
+
+def test_masks_more_token_formats():
+    samples = [
+        "sk-proj-abcdefghijklmnopqrstuvwxyz012345",
+        "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+        "github_pat_11ABCDEFG0abcdefghijklmnopqrstuvwxyz",
+        "AKIAABCDEFGHIJKLMNOP",
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop",
+        "Bearer abcdefghijklmnopqrstuvwxyz",
+        "AIzaSyA1234567890abcdefghijklmnopqrstuv",
+    ]
+    for s in samples:
+        out = mask_secrets(f"error with {s} please help")
+        assert s not in out and MASK in out, s
+    out = mask_secrets("-----BEGIN RSA PRIVATE KEY-----\nMIIEabc\n-----END RSA PRIVATE KEY-----")
+    assert "MIIEabc" not in out
+    assert "hunter2" not in mask_secrets("password=hunter2")
