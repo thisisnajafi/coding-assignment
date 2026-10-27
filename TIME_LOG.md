@@ -9,8 +9,8 @@ user-requested extensions); its end is its last commit.
 | Window start | 2026-10-27 16:51 (first commit 75149d0) |
 | Deadline (24 h) | 2026-10-28 16:51 |
 | First complete delivery | 2026-10-27 17:27 (d621dbc), ~36 min after start |
-| Last update | 18:29 |
-| Elapsed of 24 h window at last update | ~98 min (at 18:29) |
+| Last update | 18:36 |
+| Elapsed of 24 h window at last update | ~105 min (at 18:36) |
 
 ## 1. Required tasks (from the assignment README)
 
@@ -38,5 +38,7 @@ user-requested extensions); its end is its last commit.
 | D | Time log update | Keep the log current | 18:04:04 | 18:08:39 | 5 min | c087555 |
 | E | Searchable multi-provider model picker | Let IT choose among verified OpenAI, Gemini, Claude and DeepSeek models; server-side allowlist | 18:07 (request) | 18:13:25 | 6 min | 0a073c8, a5e226d |
 | F | IT ticket detail rework | Suggestion made after the final reply could not be sent; final reply shown twice; code block faded and clipped; layout order | 18:22 (request) | 18:24:50 | 3 min | 6e2ebba |
-| G | `PROMPTS.md` (AI prompt documentation) | Document the exact system prompt, template, limits and a filled example | 18:26 (request) | 18:29 | ~ | this batch |
-| H | Screenshot refresh + docs/time-log update | Screenshots and docs show the extended UI (thread, skeletons, model picker, reworked IT detail) | 18:13:25 | 18:29 | ~ | this batch |
+| G | `PROMPTS.md` (AI prompt documentation) | Document the exact system prompt, template, limits and a filled example | 18:26 (request) | 18:29 | ~ | 401b6ea, 672a05b |
+| H | Screenshot refresh + docs/time-log update | Screenshots and docs show the extended UI (thread, skeletons, model picker, reworked IT detail) | 18:13:25 | 18:29 | ~ | 401b6ea, 672a05b |
+| I | Security hardening, part 1 (on main, before the work moved to the `security-fixes` branch) | AI rate limits (per user, per IP, daily cap) with fallback, DEMO_MODE flag, API security headers, more secret patterns, compose ports on localhost | 18:31 (request) | 18:33:08 | 2 min | 8955edc, 6f7c623, e90751f |
+| J | Time log update | Keep the log current | 18:33:08 | 18:36 | ~ | this commit |
