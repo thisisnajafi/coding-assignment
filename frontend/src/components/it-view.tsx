@@ -16,9 +16,10 @@ import { FinalReply } from "@/components/final-reply";
 import { TicketBody } from "@/components/ticket-body";
 import { TicketMeta } from "@/components/ticket-meta";
 import { TicketThread } from "@/components/ticket-thread";
+import { ModelPicker } from "@/components/model-picker";
+import { DEFAULT_GROUPS, type ModelGroup } from "@/lib/models";
 import { SourceBadge, TicketBadges } from "@/components/ticket-badges";
 import { EmptyState, ErrorState, DetailSkeleton, ListSkeleton, SuggestionSkeleton } from "@/components/states";
-import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from "@/lib/labels";
 import { useTickets } from "@/lib/use-tickets";
@@ -191,7 +192,7 @@ export function TicketDetail({
   onChange: (t: Ticket) => void;
   onBack?: () => void;
 }) {
-  const [models, setModels] = useState<string[]>([DEFAULT_MODEL]);
+  const [groups, setGroups] = useState<ModelGroup[]>(DEFAULT_GROUPS);
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [reply, setReply] = useState(ticket.final_reply || ticket.suggested_reply || "");
@@ -201,9 +202,9 @@ export function TicketDetail({
   useEffect(() => {
     api
       .models(username)
-      .then(({ models: list, default: def }) => {
+      .then(({ models: list, default: def, groups: g }) => {
         if (!list.length) return;
-        setModels(list);
+        setGroups(g);
         setModel(list.includes(DEFAULT_MODEL) ? DEFAULT_MODEL : def && list.includes(def) ? def : list[0]);
       })
       .catch(() => {
@@ -298,24 +299,7 @@ export function TicketDetail({
               {ticket.suggestion_source && <SourceBadge source={ticket.suggestion_source} />}
             </div>
             <div className="flex items-center gap-2">
-              {modelsLoading ? (
-                <Skeleton data-testid="model-picker-skeleton" className="h-9 w-32 rounded-lg" />
-              ) : (
-                <NativeSelect
-                  aria-label="انتخاب مدل هوش مصنوعی"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  disabled={busy !== null}
-                  dir="ltr"
-                  className="max-w-40"
-                >
-                  {models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </NativeSelect>
-              )}
+              <ModelPicker groups={groups} value={model} onChange={setModel} loading={modelsLoading} disabled={busy !== null} />
               <Button variant="outline" size="sm" onClick={regenerate} disabled={busy !== null}>
                 {busy === "suggest" ? <Loader2 className="animate-spin" /> : <RefreshCw />}
                 تولید مجدد

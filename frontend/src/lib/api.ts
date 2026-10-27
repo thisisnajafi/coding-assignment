@@ -1,4 +1,5 @@
 import type { Message, Status, Ticket, User } from "./types";
+import type { ModelGroup } from "./models";
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
@@ -82,6 +83,12 @@ export const api = {
       data && typeof data === "object" && !Array.isArray(data) && typeof (data as { default?: unknown }).default === "string"
         ? ((data as { default: string }).default)
         : undefined;
-    return { models: ids, default: def };
+    const groups =
+      data && typeof data === "object" && Array.isArray((data as { groups?: unknown }).groups)
+        ? ((data as { groups: ModelGroup[] }).groups)
+        : ids.length
+          ? [{ provider: "other", label: "Models", models: ids }]
+          : [];
+    return { models: ids, default: def, groups };
   },
 };
