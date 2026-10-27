@@ -48,6 +48,16 @@ Missing/unknown user -> `401`. Roles are enforced on the server, never only in t
 }
 ```
 
+`Message`:
+```json
+{
+  "id": 3, "ticket_id": 1, "author": "it_admin", "role": "it",
+  "body": "... (secrets masked)", "reply_to_id": 2,
+  "reply_to": { "id": 2, "author": "maryam", "role": "employee", "snippet": "first 140 chars…" },
+  "is_final": false, "created_at": "2026-10-27T14:30:00Z"
+}
+```
+
 Errors: `{ "detail": "message" }` (validation errors use FastAPI's 422 list format).
 
 ## Endpoints
@@ -63,6 +73,17 @@ Errors: `{ "detail": "message" }` (validation errors use FastAPI's 422 list form
 | PATCH | `/api/tickets/{id}/status` | IT | body `{ "status": "in_progress" }` -> `TicketIT`; employees `403` |
 | POST | `/api/tickets/{id}/reply` | IT | body `{ "reply": str(2..5000) }` -> `TicketIT`. Only one final reply per ticket: second -> `409` |
 | POST | `/api/tickets/{id}/regenerate` | IT | body `{ "model": "gpt-4o" }` (optional) -> `TicketIT` with new suggestion; may fall back. Unknown model -> `422` |
+| GET | `/api/tickets/{id}/messages` | owner or IT | `Message[]`, chronological. Others' tickets -> `404` |
+| POST | `/api/tickets/{id}/messages` | owner or IT | body `{ "body": str(1..3000), "reply_to_id": int? }` -> `201 Message`. `reply_to_id` must be a message of the same ticket, else `422` |
 | GET | `/api/ai/models` | IT | `{ "default": "gpt-4o", "models": ["gpt-4o", ...], "ai_enabled": true }` |
 
 Employee responses never contain AI fields. IT responses are `TicketIT` everywhere.
+
+## Conversation thread (added later, backward compatible)
+
+- Owner and IT can post any number of messages; `reply_to_id` quotes an earlier message of the same ticket.
+- `POST /reply` still works exactly as before (one final reply, `409` on a second). It also appends a
+  message with `is_final: true` to the thread.
+- `POST /regenerate` sends the ticket plus the thread (chronological, role-labelled, oldest trimmed to
+  a ~6000 character budget, secrets masked) to the AI; the suggestion is the next IT reply.
+  Messages never include AI output, so employees never see it.

@@ -9,10 +9,11 @@ from ..ai import available_models
 from ..auth import current_user, require_employee, require_it
 from ..config import get_settings
 from ..db import get_db
-from ..models import Ticket, User
-from ..schemas import (Category, ModelsOut, Priority, RegenerateRequest, ReplyCreate, Status,
+from ..models import Ticket, TicketMessage, User
+from ..schemas import (Category, MessageCreate, MessageOut, ModelsOut, Priority, RegenerateRequest, ReplyCreate, Status,
                        StatusUpdate, TicketCreate, TicketEmployeeOut, TicketITOut, UserOut)
-from ..services import apply_suggestion, create_ticket, to_out
+from ..security import mask_secrets
+from ..services import add_message, apply_suggestion, create_ticket, list_messages, message_out, to_out
 
 router = APIRouter(prefix="/api")
 
@@ -80,12 +81,32 @@ def post_reply(ticket_id: int, data: ReplyCreate, user: User = Depends(require_i
     ticket = _get_visible_ticket(db, ticket_id, user)
     if ticket.final_reply:
         raise HTTPException(status.HTTP_409_CONFLICT, "This ticket already has a final reply")
-    ticket.final_reply = data.reply.strip()
+    ticket.final_reply = mask_secrets(data.reply.strip())
     ticket.replied_by_id = user.id
     ticket.replied_at = datetime.now(timezone.utc)
     db.commit()
+    # Mirror the final reply into the thread so the conversation stays complete.
+    add_message(db, ticket, user, ticket.final_reply, is_final=True)
     db.refresh(ticket)
     return to_out(ticket, user)
+
+
+@router.get("/tickets/{ticket_id}/messages", response_model=list[MessageOut])
+def get_messages(ticket_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    ticket = _get_visible_ticket(db, ticket_id, user)
+    return [message_out(m) for m in list_messages(db, ticket)]
+
+
+@router.post("/tickets/{ticket_id}/messages", response_model=MessageOut, status_code=201)
+def post_message(ticket_id: int, data: MessageCreate, user: User = Depends(current_user),
+                 db: Session = Depends(get_db)):
+    ticket = _get_visible_ticket(db, ticket_id, user)
+    parent = None
+    if data.reply_to_id is not None:
+        parent = db.get(TicketMessage, data.reply_to_id)
+        if parent is None or parent.ticket_id != ticket.id:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "reply_to_id must be a message of this ticket")
+    return message_out(add_message(db, ticket, user, data.body, reply_to=parent))
 
 
 @router.post("/tickets/{ticket_id}/regenerate", response_model=TicketITOut)

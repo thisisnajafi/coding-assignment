@@ -107,3 +107,35 @@ class ModelsOut(BaseModel):
     default: str
     models: list[str]
     ai_enabled: bool
+
+
+class MessageCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=3000)
+    reply_to_id: int | None = Field(default=None, ge=1)
+
+    @field_validator("body")
+    @classmethod
+    def _strip(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("must not be blank")
+        return v
+
+
+class MessageQuote(BaseModel):
+    id: int
+    author: str
+    role: Role
+    snippet: str
+
+
+class MessageOut(BaseModel):
+    id: int
+    ticket_id: int
+    author: str
+    role: Role
+    body: str
+    reply_to_id: int | None
+    reply_to: MessageQuote | None
+    is_final: bool
+    created_at: datetime

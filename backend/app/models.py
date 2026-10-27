@@ -1,7 +1,7 @@
 """ORM models."""
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -44,3 +44,22 @@ class Ticket(Base):
 
     owner: Mapped[User] = relationship(foreign_keys=[owner_id])
     replied_by: Mapped[User | None] = relationship(foreign_keys=[replied_by_id])
+
+
+class TicketMessage(Base):
+    """A message in a ticket's conversation thread (employee owner or IT)."""
+
+    __tablename__ = "ticket_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id"), index=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    # Stored AFTER secret masking, like ticket bodies.
+    body: Mapped[str] = mapped_column(Text)
+    reply_to_id: Mapped[int | None] = mapped_column(ForeignKey("ticket_messages.id"), nullable=True)
+    # True for the message created by the legacy "final reply" endpoint.
+    is_final: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    author: Mapped[User] = relationship()
+    reply_to: Mapped["TicketMessage | None"] = relationship(remote_side=[id])

@@ -1,9 +1,10 @@
 """Ticket business logic shared by the API and the seeder."""
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .ai import triage
-from .models import Ticket, User
-from .schemas import TicketEmployeeOut, TicketITOut
+from .models import Ticket, TicketMessage, User
+from .schemas import MessageOut, MessageQuote, TicketEmployeeOut, TicketITOut
 from .security import mask_secrets
 
 
@@ -25,7 +26,9 @@ def create_ticket(db: Session, owner: User, title: str, body: str) -> Ticket:
 
 def apply_suggestion(db: Session, ticket: Ticket, model: str | None) -> Ticket:
     """Regenerate the AI suggestion. Only suggestion fields + category/priority change."""
-    result = triage(ticket.title, ticket.body, model=model)
+    # Only this ticket's own (already masked) messages are sent, labelled by role.
+    thread = [(m.author.role, m.body) for m in list_messages(db, ticket)]
+    result = triage(ticket.title, ticket.body, model=model, thread=thread)
     ticket.category = result.category.value
     ticket.priority = result.priority.value
     ticket.suggested_reply = result.suggested_reply
@@ -50,3 +53,30 @@ def to_out(t: Ticket, viewer: User) -> TicketEmployeeOut | TicketITOut:
                            suggestion_note=t.suggestion_note,
                            replied_by=t.replied_by.username if t.replied_by else None)
     return TicketEmployeeOut(**_base(t))
+
+
+def list_messages(db: Session, ticket: Ticket) -> list[TicketMessage]:
+    q = select(TicketMessage).where(TicketMessage.ticket_id == ticket.id).order_by(
+        TicketMessage.created_at, TicketMessage.id)
+    return list(db.scalars(q))
+
+
+def add_message(db: Session, ticket: Ticket, author: User, body: str,
+                reply_to: TicketMessage | None = None, is_final: bool = False) -> TicketMessage:
+    msg = TicketMessage(ticket_id=ticket.id, author_id=author.id, body=mask_secrets(body),
+                        reply_to_id=reply_to.id if reply_to else None, is_final=is_final)
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return msg
+
+
+def message_out(m: TicketMessage) -> MessageOut:
+    quote = None
+    if m.reply_to is not None:
+        snippet = m.reply_to.body.strip().replace("\n", " ")
+        quote = MessageQuote(id=m.reply_to.id, author=m.reply_to.author.username, role=m.reply_to.author.role,
+                             snippet=snippet[:140] + ("…" if len(snippet) > 140 else ""))
+    return MessageOut(id=m.id, ticket_id=m.ticket_id, author=m.author.username, role=m.author.role,
+                      body=m.body, reply_to_id=m.reply_to_id, reply_to=quote, is_final=m.is_final,
+                      created_at=m.created_at)
