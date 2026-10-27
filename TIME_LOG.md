@@ -7,7 +7,7 @@ All times are Asia/Tehran (UTC+03:30), taken from real git commit timestamps
 |---|---|
 | Start | 2026-10-27 16:51 (first commit 75149d0) |
 | Deadline (24 h window) | 2026-10-28 16:51 |
-| End | 2026-10-27 17:27 (last feature/docs commit d621dbc); this log updated at 17:29 |
+| End (first delivery) | 2026-10-27 17:27 (d621dbc); later extensions by user request below; this log first updated at 17:29 |
 | Approximate active time | ~36 min from first commit to last feature commit (16:51 to 17:27) |
 | Elapsed of 24 h window at last update | ~38 min |
 
@@ -44,3 +44,17 @@ All times are Asia/Tehran (UTC+03:30), taken from real git commit timestamps
 | 17:26:26 | 89d6608 | Fix: per-line bidi for mixed Persian/English ticket text (found in E2E check) |
 | 17:26:54 | 36dfb46 | Screenshots (employee, IT, mobile) |
 | 17:27:44 | d621dbc | Docs, task checklist and time log update |
+| 17:29:19 | 07bba20 | Detailed time log |
+| 17:58:03 | bd9beef | UI: layout-matched skeleton loaders, reduced-motion support (user request, started ~17:56) |
+| 18:00:54 | a30a7b8 | UI polish: card hierarchy, badges, collapsible body + code blocks, final reply block, validation, dark mode |
+| 18:02:18 | 99ff847 | Vitest: skeletons, empty state, collapsible body, validation |
+| 18:02:30 | 38b6a87 | Backend: per-ticket message thread, reply-to, masking, thread-aware AI suggestions (user request) |
+| 18:04:04 | 8149518 | Frontend: chat-style thread UI with reply-to quotes |
+| 18:08 | (this commit) | Time log update; next: model picker grouped by provider (verified GapGPT models), screenshots |
+
+## Extension phases (user requests after first delivery)
+
+| Phase | From | To | Duration | Commits |
+|---|---|---|---|---|
+| UI enhancements + skeletons | 17:56 | 18:02 | ~6 min | bd9beef, a30a7b8, 99ff847 |
+| Message thread (backend + frontend) | 18:00 | 18:04 | ~4 min | 38b6a87, 8149518 |
