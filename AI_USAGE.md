@@ -43,3 +43,4 @@
   was faded and cut off. Each fix has a test (sending the suggestion, confirmation, the final-reply
   action hidden once a final reply exists).
 - `PROMPTS.md` was generated from the real code (the system prompt copied word for word, and the example built with the actual masking and prompt functions), so the docs match what is sent.
+- Security hardening was reviewed before merging: the assistant checked the existing rate limiter and headers instead of rewriting them, verified `npm audit` against the official npm registry (the local mirror has no audit endpoint), and added tests for each new secret pattern.
