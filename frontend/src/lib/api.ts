@@ -1,4 +1,4 @@
-import type { Status, Ticket, User } from "./types";
+import type { Message, Status, Ticket, User } from "./types";
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
@@ -68,6 +68,12 @@ export const api = {
     request<Ticket>(`/api/tickets/${id}/reply`, user, { method: "POST", body: JSON.stringify({ reply: text }) }),
   regenerate: (user: string, id: number, model: string) =>
     request<Ticket>(`/api/tickets/${id}/regenerate`, user, { method: "POST", body: JSON.stringify({ model }) }),
+  messages: (user: string, id: number) => request<Message[]>(`/api/tickets/${id}/messages`, user),
+  postMessage: (user: string, id: number, body: string, replyToId?: number | null) =>
+    request<Message>(`/api/tickets/${id}/messages`, user, {
+      method: "POST",
+      body: JSON.stringify({ body, reply_to_id: replyToId ?? null }),
+    }),
   models: async (user: string) => {
     const data = await request<unknown>("/api/ai/models", user);
     const list = unwrapList<string | { id?: string; name?: string }>(data, ["models", "items"]);

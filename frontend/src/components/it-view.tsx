@@ -15,6 +15,7 @@ import { PlainText } from "@/components/plain-text";
 import { FinalReply } from "@/components/final-reply";
 import { TicketBody } from "@/components/ticket-body";
 import { TicketMeta } from "@/components/ticket-meta";
+import { TicketThread } from "@/components/ticket-thread";
 import { SourceBadge, TicketBadges } from "@/components/ticket-badges";
 import { EmptyState, ErrorState, DetailSkeleton, ListSkeleton, SuggestionSkeleton } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -263,6 +264,10 @@ export function TicketDetail({
         <div className="rounded-lg bg-muted/40 p-3">
           <TicketBody text={ticket.body} className="text-sm" />
         </div>
+
+        <TicketThread username={username} ticketId={ticket.id} viewerRole="it" />
+
+        <Separator />
 
         <div className="flex flex-wrap items-center gap-2">
           <Label htmlFor="status-select">تغییر وضعیت:</Label>

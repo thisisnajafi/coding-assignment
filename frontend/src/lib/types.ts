@@ -28,3 +28,22 @@ export interface Ticket {
   suggestion_note?: string | null;
   replied_by?: string | null;
 }
+
+export interface MessageQuote {
+  id: number;
+  author: string;
+  role: Role;
+  snippet: string;
+}
+
+export interface Message {
+  id: number;
+  ticket_id: number;
+  author: string;
+  role: Role;
+  body: string;
+  reply_to_id: number | null;
+  reply_to: MessageQuote | null;
+  is_final: boolean;
+  created_at: string;
+}

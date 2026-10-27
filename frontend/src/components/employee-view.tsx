@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { Clock, Inbox, Loader2, RefreshCw, Send } from "lucide-react";
+import { ChevronDown, Clock, Inbox, Loader2, MessagesSquare, RefreshCw, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { FinalReply } from "@/components/final-reply";
 import { TicketBadges } from "@/components/ticket-badges";
 import { TicketBody } from "@/components/ticket-body";
 import { TicketMeta } from "@/components/ticket-meta";
+import { TicketThread } from "@/components/ticket-thread";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/states";
 import { api } from "@/lib/api";
 import { useTickets } from "@/lib/use-tickets";
@@ -63,7 +64,7 @@ export function EmployeeView({ username }: { username: string }) {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <EmployeeTicketCard ticket={t} />
+                  <EmployeeTicketCard ticket={t} username={username} />
                 </motion.li>
               ))}
             </AnimatePresence>
@@ -74,7 +75,9 @@ export function EmployeeView({ username }: { username: string }) {
   );
 }
 
-function EmployeeTicketCard({ ticket }: { ticket: Ticket }) {
+function EmployeeTicketCard({ ticket, username }: { ticket: Ticket; username: string }) {
+  // The thread is mounted lazily so the list does not fire one request per ticket.
+  const [threadOpen, setThreadOpen] = useState(false);
   return (
     <Card data-testid="ticket-card" className="transition-shadow hover:shadow-md">
       <CardHeader className="space-y-2">
@@ -94,6 +97,19 @@ function EmployeeTicketCard({ ticket }: { ticket: Ticket }) {
             هنوز پاسخی ثبت نشده است؛ کارشناس به‌زودی بررسی می‌کند.
           </p>
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full justify-between"
+          aria-expanded={threadOpen}
+          onClick={() => setThreadOpen((v) => !v)}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <MessagesSquare aria-hidden /> {threadOpen ? "بستن گفتگو" : "گفتگو با پشتیبانی"}
+          </span>
+          <ChevronDown className={cn("transition-transform", threadOpen && "rotate-180")} aria-hidden />
+        </Button>
+        {threadOpen && <TicketThread username={username} ticketId={ticket.id} viewerRole="employee" />}
       </CardContent>
     </Card>
   );
