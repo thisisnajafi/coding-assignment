@@ -8,7 +8,7 @@ import { ModelPicker } from "@/components/model-picker";
 import { PlainText } from "@/components/plain-text";
 import { SourceBadge } from "@/components/ticket-badges";
 import { SuggestionSkeleton } from "@/components/states";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { DEFAULT_GROUPS, type ModelGroup } from "@/lib/models";
 import type { Ticket } from "@/lib/types";
 
@@ -71,7 +71,8 @@ export function SuggestionPanel({
       onChange(t);
       toast.success(t.suggestion_source === "fallback" ? "سرویس AI در دسترس نبود؛ پاسخ جایگزین تولید شد." : "پیشنهاد جدید تولید شد.");
     } catch (e) {
-      toast.error("تولید پیشنهاد ناموفق بود.", { description: e instanceof Error ? e.message : undefined });
+      if (e instanceof ApiError && e.status === 429) toast.warning("سقف استفاده از هوش مصنوعی پر شده است.", { description: e.message });
+      else toast.error("تولید پیشنهاد ناموفق بود.", { description: e instanceof Error ? e.message : undefined });
     } finally {
       setBusy(null);
     }
