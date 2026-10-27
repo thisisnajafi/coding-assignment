@@ -103,9 +103,16 @@ class TicketITOut(TicketEmployeeOut):
     replied_by: str | None
 
 
+class ModelGroup(BaseModel):
+    provider: str
+    label: str
+    models: list[str]
+
+
 class ModelsOut(BaseModel):
     default: str
-    models: list[str]
+    models: list[str]  # flat list, kept for backward compatibility
+    groups: list[ModelGroup]
     ai_enabled: bool
 
 

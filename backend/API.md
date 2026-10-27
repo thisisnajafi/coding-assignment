@@ -75,7 +75,7 @@ Errors: `{ "detail": "message" }` (validation errors use FastAPI's 422 list form
 | POST | `/api/tickets/{id}/regenerate` | IT | body `{ "model": "gpt-4o" }` (optional) -> `TicketIT` with new suggestion; may fall back. Unknown model -> `422` |
 | GET | `/api/tickets/{id}/messages` | owner or IT | `Message[]`, chronological. Others' tickets -> `404` |
 | POST | `/api/tickets/{id}/messages` | owner or IT | body `{ "body": str(1..3000), "reply_to_id": int? }` -> `201 Message`. `reply_to_id` must be a message of the same ticket, else `422` |
-| GET | `/api/ai/models` | IT | `{ "default": "gpt-4o", "models": ["gpt-4o", ...], "ai_enabled": true }` |
+| GET | `/api/ai/models` | IT | `{ "default": "gpt-4o", "models": ["gpt-4o", ...], "groups": [{ "provider": "openai", "label": "OpenAI", "models": ["gpt-4o", ...] }, ...], "ai_enabled": true }` |
 
 Employee responses never contain AI fields. IT responses are `TicketIT` everywhere.
 
@@ -87,3 +87,17 @@ Employee responses never contain AI fields. IT responses are `TicketIT` everywhe
 - `POST /regenerate` sends the ticket plus the thread (chronological, role-labelled, oldest trimmed to
   a ~6000 character budget, secrets masked) to the AI; the suggestion is the next IT reply.
   Messages never include AI output, so employees never see it.
+
+## Model allowlist
+
+`/regenerate` accepts only allowlisted model ids (others -> `422`). Verified against GapGPT on 2026-10-27:
+
+| Provider | Models |
+|---|---|
+| OpenAI | gpt-4o (default), gpt-4.1, gpt-4.1-mini, gpt-5-mini |
+| Google Gemini | gemini-2.5-flash, gemini-2.5-pro, gemini-3-flash-preview |
+| Anthropic Claude | claude-sonnet-4-5, claude-sonnet-4-6, claude-haiku-4-5-20251001 |
+| DeepSeek | deepseek-chat, deepseek-v4-flash, deepseek-v4-pro |
+
+`/ai/models` returns the allowlist intersected with GapGPT's live `/models` list, or the whole
+allowlist when the live list is unavailable. `models` (flat) is kept for backward compatibility.

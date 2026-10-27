@@ -25,7 +25,7 @@ class FakeAI:
         self.response: str | Exception = json.dumps(
             {"category": "software", "priority": "low", "suggested_reply": "پاسخ آزمایشی"})
         self.calls: list[dict] = []
-        self.models = ["gpt-4o", "gpt-4o-mini", "gpt-4o-2024-08-06", "text-embedding-3-small", "claude-3-opus"]
+        self.models = ["gpt-4o", "gpt-4.1", "gpt-4o-2024-08-06", "text-embedding-3-small", "claude-sonnet-4-5", "gemini-2.5-flash", "deepseek-chat"]
 
     def complete(self, model, system, user):
         self.calls.append({"model": model, "system": system, "user": user})

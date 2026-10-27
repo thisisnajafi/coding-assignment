@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..ai import available_models
+from ..ai import ALLOWED_MODELS, available_model_groups
 from ..auth import current_user, require_employee, require_it
 from ..config import get_settings
 from ..db import get_db
@@ -113,7 +113,7 @@ def post_message(ticket_id: int, data: MessageCreate, user: User = Depends(curre
 def regenerate(ticket_id: int, data: RegenerateRequest, user: User = Depends(require_it),
                db: Session = Depends(get_db)):
     ticket = _get_visible_ticket(db, ticket_id, user)
-    if data.model and data.model not in available_models():
+    if data.model and data.model not in ALLOWED_MODELS:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Unknown model")
     return to_out(apply_suggestion(db, ticket, data.model), user)
 
@@ -121,4 +121,6 @@ def regenerate(ticket_id: int, data: RegenerateRequest, user: User = Depends(req
 @router.get("/ai/models", response_model=ModelsOut)
 def models(user: User = Depends(require_it)):
     s = get_settings()
-    return ModelsOut(default=s.ai_default_model, models=available_models(), ai_enabled=s.ai_enabled)
+    groups = available_model_groups()
+    return ModelsOut(default=s.ai_default_model, models=[m for g in groups for m in g["models"]],
+                     groups=groups, ai_enabled=s.ai_enabled)

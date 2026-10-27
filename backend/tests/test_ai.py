@@ -78,17 +78,38 @@ def test_regenerate_with_model_and_unknown_model(client, fake_ai):
     t = client.get("/api/tickets", headers=as_user("it_admin")).json()[0]
     h = as_user("it_admin")
     fake_ai.response = json.dumps({"category": "access", "priority": "high", "suggested_reply": "جدید"})
-    r = client.post(f"/api/tickets/{t['id']}/regenerate", json={"model": "gpt-4o-mini"}, headers=h)
-    assert r.status_code == 200 and r.json()["suggestion_model"] == "gpt-4o-mini"
+    r = client.post(f"/api/tickets/{t['id']}/regenerate", json={"model": "gpt-4.1"}, headers=h)
+    assert r.status_code == 200 and r.json()["suggestion_model"] == "gpt-4.1"
     assert r.json()["status"] == t["status"]
     assert client.post(f"/api/tickets/{t['id']}/regenerate", json={"model": "evil-model"}, headers=h).status_code == 422
 
 
-def test_models_endpoint_filters_list(client):
+def test_models_endpoint_groups_allowlist_by_provider(client):
     data = client.get("/api/ai/models", headers=as_user("it_admin")).json()
-    assert "gpt-4o" in data["models"] and "claude-3-opus" not in data["models"]
-    assert not any("embedding" in m for m in data["models"])
-    assert "gpt-4o-2024-08-06" not in data["models"]
+    assert data["default"] == "gpt-4o"
+    providers = [g["provider"] for g in data["groups"]]
+    assert providers == ["openai", "google", "anthropic", "deepseek"]
+    # intersection with the live list: only allowlisted ids that GapGPT serves (fake list)
+    assert data["models"] == ["gpt-4o", "gpt-4.1", "gemini-2.5-flash", "claude-sonnet-4-5", "deepseek-chat"]
+    assert "text-embedding-3-small" not in data["models"] and "gpt-4o-2024-08-06" not in data["models"]
+
+
+def test_models_fall_back_to_full_allowlist_when_listing_fails(client, fake_ai):
+    def boom():
+        raise AIError("offline")
+    fake_ai.list_models = boom
+    data = client.get("/api/ai/models", headers=as_user("it_admin")).json()
+    assert data["models"] == ai.ALLOWED_MODELS
+
+
+def test_regenerate_rejects_models_outside_allowlist(client, fake_ai):
+    t = client.get("/api/tickets", headers=as_user("it_admin")).json()[0]
+    h = as_user("it_admin")
+    for bad in ["gpt-4o-2024-08-06", "text-embedding-3-small", "claude-3-opus", "../etc"]:
+        assert client.post(f"/api/tickets/{t['id']}/regenerate", json={"model": bad}, headers=h).status_code == 422
+    for good in ["claude-sonnet-4-5", "gemini-2.5-flash", "deepseek-chat"]:
+        r = client.post(f"/api/tickets/{t['id']}/regenerate", json={"model": good}, headers=h)
+        assert r.status_code == 200 and fake_ai.calls[-1]["model"] == good
 
 
 def test_rule_based_handles_arabic_letters():
