@@ -17,6 +17,8 @@ Without `backend/.env` (or without a key) everything still works: tickets are cl
 rule-based fallback and the suggested reply is a template marked as non-AI.
 
 The SQLite DB lives in the `backend-data` Docker volume. To reset demo data: `docker compose down -v`.
+**Warning:** `-v` deletes the volume, i.e. wipes the whole database (all tickets and messages).
+Use plain `docker compose down` to stop without losing data.
 
 ### Run without Docker
 
@@ -124,10 +126,33 @@ The exact AI prompt, the user-message template and a filled example are in [`PRO
 ## Limitations
 
 - No real authentication: anyone can send any `X-User` header.
-- No migrations (tables are created at startup), no pagination, no rate limiting.
+- No migrations (tables are created at startup), no pagination.
+- Rate limiting is in-memory (per process), so it resets on restart and is not shared across replicas.
 - Secret masking is heuristic: it can miss unusual secrets or mask some harmless tokens.
 - Seeding with a key makes 6 AI calls at first start (a few seconds).
 - No audit log, comments thread or notifications.
+
+## Security limitations
+
+- **Demo auth is not authentication.** The caller is identified only by the `X-User` header, so
+  anyone who can reach the API can impersonate any user (including IT) by sending another
+  username. It exists only to make the demo easy to try. The backend logs a warning at startup
+  when `DEMO_MODE` is on.
+- `GET /api/users` is the **demo user picker** (it lists seeded accounts for the login screen).
+  It is available only when `DEMO_MODE=true` and returns 404 otherwise.
+- `/docs` and `/openapi.json` are served only when `DEMO_MODE` or `DEBUG` is on.
+- AI calls are rate limited per user and per IP (`AI_RATE_PER_MINUTE`, default 5/min) plus a daily
+  cap (`AI_DAILY_CAP`). When a limit is hit, ticket creation still succeeds with the rule-based
+  fallback answer; manual "regenerate suggestion" returns HTTP 429 with a clear message (shown as a
+  toast in the UI).
+- Security headers are set by the backend middleware and by `next.config.ts` (CSP,
+  `X-Content-Type-Options`, `X-Frame-Options`/`frame-ancestors`, `Referrer-Policy`). The frontend
+  CSP allows `'unsafe-inline'` scripts/styles because Next.js injects inline bootstrap code; a
+  nonce-based CSP would be stricter.
+- Docker Compose binds ports to `127.0.0.1` only, so the demo is not reachable from the network.
+- Secret masking (passwords, `sk-`/`sk-proj-` keys, GitHub tokens, AWS keys, JWTs, Bearer tokens,
+  Slack/Google keys, private keys) is heuristic and can miss unusual secrets.
+- `docker compose down -v` wipes the database volume.
 
 ## For real production use
 
