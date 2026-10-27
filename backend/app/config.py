@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/tickets.db"
     cors_origins: str = "http://localhost:3000"
     seed_on_startup: bool = True
+    # Demo mode enables the X-User header "login", the demo user picker and the API docs.
+    demo_mode: bool = True
+    debug: bool = False
+    # AI cost/abuse protection
+    ai_rate_per_minute: int = 5
+    ai_daily_cap: int = 300
 
     @property
     def ai_enabled(self) -> bool:

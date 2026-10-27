@@ -34,3 +34,25 @@ def test_html_is_stored_as_plain_text(client):
     payload = '<img src=x onerror="alert(1)"> help'
     r = client.post("/api/tickets", json={"title": "xss", "body": payload}, headers=as_user("maryam"))
     assert r.json()["body"] == payload
+
+
+def test_masks_jwt_aws_and_slack_tokens():
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+    text = f"token {jwt} key AKIAIOSFODNN7EXAMPLE slack xoxb-1234567890-abcdefghij"
+    out = mask_secrets(text)
+    assert jwt not in out and "AKIAIOSFODNN7EXAMPLE" not in out and "xoxb-" not in out
+
+
+def test_security_headers_and_demo_picker(client):
+    r = client.get("/api/health")
+    assert r.headers["X-Content-Type-Options"] == "nosniff"
+    assert r.headers["X-Frame-Options"] == "DENY"
+    assert "frame-ancestors 'none'" in r.headers["Content-Security-Policy"]
+    assert client.get("/api/users").status_code == 200
+
+
+def test_demo_mode_off_disables_header_auth_and_picker(client, monkeypatch):
+    from app.config import get_settings
+    monkeypatch.setattr(get_settings(), "demo_mode", False)
+    assert client.get("/api/users").status_code == 404
+    assert client.get("/api/tickets", headers=as_user("it_admin")).status_code == 401

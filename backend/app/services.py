@@ -2,16 +2,20 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .ai import triage
+from .ai import fallback_triage, triage
+from .ratelimit import limiter
 from .models import Ticket, TicketMessage, User
 from .schemas import MessageOut, MessageQuote, TicketEmployeeOut, TicketITOut
 from .security import mask_secrets
 
 
-def create_ticket(db: Session, owner: User, title: str, body: str) -> Ticket:
+def create_ticket(db: Session, owner: User, title: str, body: str, ip: str | None = None,
+                  rate_limited: bool = True) -> Ticket:
     safe_title = mask_secrets(title)
     safe_body = mask_secrets(body)
-    result = triage(safe_title, safe_body)
+    # Over the AI limit, creation still succeeds with the rule-based fallback.
+    blocked = limiter.acquire(owner.username, ip) if rate_limited else None
+    result = fallback_triage(safe_title, safe_body, blocked) if blocked else triage(safe_title, safe_body)
     ticket = Ticket(
         owner_id=owner.id, title=safe_title, body=safe_body, status="open",
         category=result.category.value, priority=result.priority.value,

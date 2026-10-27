@@ -34,5 +34,5 @@ def seed(db: Session) -> None:
         return
     users = {u.username: u for u in db.scalars(select(User))}
     for username, title, body in TICKETS:
-        t = create_ticket(db, users[username], title, body)
+        t = create_ticket(db, users[username], title, body, rate_limited=False)
         log.info("Seeded ticket %s (%s/%s via %s)", t.id, t.category, t.priority, t.suggestion_source)

@@ -1,7 +1,7 @@
 """Ticket endpoints. All access control is enforced here, server-side."""
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from ..db import get_db
 from ..models import Ticket, TicketMessage, User
 from ..schemas import (Category, MessageCreate, MessageOut, ModelsOut, Priority, RegenerateRequest, ReplyCreate, Status,
                        StatusUpdate, TicketCreate, TicketEmployeeOut, TicketITOut, UserOut)
+from ..ratelimit import limiter
 from ..security import mask_secrets
 from ..services import add_message, apply_suggestion, create_ticket, list_messages, message_out, to_out
 
@@ -27,7 +28,13 @@ def _get_visible_ticket(db: Session, ticket_id: int, user: User) -> Ticket:
 
 
 @router.get("/users", response_model=list[UserOut])
-def list_users(db: Session = Depends(get_db)):
+def list_demo_users(db: Session = Depends(get_db)):
+    """Demo user picker: lists the seeded demo accounts. Only available when DEMO_MODE=true.
+
+    This endpoint (and the X-User header) exist only for the demo; see DOCS.md "Security limitations".
+    """
+    if not get_settings().demo_mode:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
     return db.scalars(select(User).order_by(User.id)).all()
 
 
@@ -56,8 +63,10 @@ def list_tickets(
 
 
 @router.post("/tickets", response_model=TicketEmployeeOut, status_code=201)
-def post_ticket(data: TicketCreate, user: User = Depends(require_employee), db: Session = Depends(get_db)):
-    return to_out(create_ticket(db, user, data.title, data.body), user)
+def post_ticket(data: TicketCreate, request: Request, user: User = Depends(require_employee),
+                db: Session = Depends(get_db)):
+    ip = request.client.host if request.client else None
+    return to_out(create_ticket(db, user, data.title, data.body, ip=ip), user)
 
 
 @router.get("/tickets/{ticket_id}", response_model=TicketITOut | TicketEmployeeOut)
@@ -110,11 +119,15 @@ def post_message(ticket_id: int, data: MessageCreate, user: User = Depends(curre
 
 
 @router.post("/tickets/{ticket_id}/regenerate", response_model=TicketITOut)
-def regenerate(ticket_id: int, data: RegenerateRequest, user: User = Depends(require_it),
+def regenerate(ticket_id: int, data: RegenerateRequest, request: Request, user: User = Depends(require_it),
                db: Session = Depends(get_db)):
     ticket = _get_visible_ticket(db, ticket_id, user)
     if data.model and data.model not in ALLOWED_MODELS:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Unknown model")
+    if limiter.acquire(user.username, request.client.host if request.client else None):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                            "محدودیت تعداد درخواست هوش مصنوعی؛ لطفاً یک دقیقه دیگر دوباره تلاش کنید.",
+                            headers={"Retry-After": "60"})
     return to_out(apply_suggestion(db, ticket, data.model), user)
 
 

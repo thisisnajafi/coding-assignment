@@ -8,11 +8,15 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .config import get_settings
 from .db import get_db
 from .models import User
 
 
 def current_user(x_user: str | None = Header(default=None), db: Session = Depends(get_db)) -> User:
+    if not get_settings().demo_mode:
+        # Outside demo mode there is no trusted identity source yet: refuse everything.
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication is not configured (DEMO_MODE=false)")
     if not x_user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing X-User header")
     user = db.scalar(select(User).where(User.username == x_user.strip()))

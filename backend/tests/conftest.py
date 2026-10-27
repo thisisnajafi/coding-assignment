@@ -37,6 +37,14 @@ class FakeAI:
         return self.models
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limit():
+    from app.ratelimit import limiter
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
 @pytest.fixture()
 def fake_ai():
     fake = FakeAI()
