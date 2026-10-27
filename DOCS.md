@@ -32,8 +32,21 @@ cd frontend && npm install && npm run dev
 
 ```bash
 cd backend && pytest -q          # 33 tests, AI is mocked
-cd frontend && npm test          # vitest
+cd frontend && npm test          # vitest (5 tests)
 ```
+
+## Screenshots
+
+| | |
+|---|---|
+| Employee (desktop) | `docs/screenshots/01-employee.png` |
+| IT dashboard with AI suggestion (injection ticket) | `docs/screenshots/02-it-dashboard.png` |
+| Employee on mobile (390 px) | `docs/screenshots/03-mobile-employee.png` |
+| IT on mobile | `docs/screenshots/04-mobile-it.png` |
+
+Taken with Playwright (headless Chromium) against `docker compose up --build`, after an end-to-end
+run: employee creates a ticket in the UI, IT selects it and sends the final reply, employee sees it.
+The XSS sample shows as plain text (no dialog fired) and the password is shown as `[REDACTED]`.
 
 ## Architecture
 
