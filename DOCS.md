@@ -6,6 +6,19 @@ run instructions, decisions, assumptions and limitations that the assignment ask
 ## Run (one command)
 
 ```bash
+./start.sh            # Linux/macOS
+.\start.ps1           # Windows PowerShell
+```
+
+The script checks that Docker and Compose are installed, creates `backend/.env` from
+`backend/.env.example` if it is missing (fill `GAPGPT_API_KEY` there to enable real AI), runs
+`docker compose up -d --build`, waits until the backend health check and the frontend respond and
+prints the URLs. Stop with `./start.sh --stop` / `.\start.ps1 -Stop` (data is kept).
+`--prod` / `-Prod` adds `docker-compose.prod.yml` (see "Deployment").
+
+Manual equivalent:
+
+```bash
 cp backend/.env.example backend/.env   # optional: add GAPGPT_API_KEY to enable real AI
 docker compose up --build
 ```

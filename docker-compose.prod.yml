@@ -1,0 +1,19 @@
+# Production override for the public demo deployment.
+# Use with: ./start.sh --prod   (or: BACKEND_PORT=8310 FRONTEND_PORT=3310 \
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build)
+# Ports stay bound to 127.0.0.1; a reverse proxy (Caddy) terminates HTTPS in front of them.
+services:
+  backend:
+    environment:
+      CORS_ORIGINS: https://assignment.abolfazlnajafi.ir
+      DEMO_MODE: "true"   # demo assignment: the X-User user picker must work
+      DEBUG: "false"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: https://assignment-api.abolfazlnajafi.ir
+    environment:
+      NEXT_PUBLIC_API_URL: https://assignment-api.abolfazlnajafi.ir
+    restart: unless-stopped
