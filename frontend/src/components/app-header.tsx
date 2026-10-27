@@ -3,23 +3,25 @@
 import { Headset } from "lucide-react";
 import { NativeSelect } from "@/components/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { ROLE_LABELS, label } from "@/lib/labels";
 import { useUser } from "@/lib/user-context";
 
 export function AppHeader() {
   const { users, current, setUsername, loadingUsers } = useUser();
   return (
-    <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b bg-background/80 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Headset className="size-5" />
+            <Headset className="size-5" aria-hidden />
           </div>
           <div>
             <h1 className="text-base font-bold leading-tight">پشتیبانی هوشمند IT</h1>
             <p className="text-xs text-muted-foreground">سامانه ثبت و پیگیری تیکت</p>
           </div>
         </div>
+        <div className="flex items-center gap-1">
         <label className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">کاربر نمایشی:</span>
           {loadingUsers || !current ? (
@@ -38,6 +40,8 @@ export function AppHeader() {
           </NativeSelect>
           )}
         </label>
+        <ThemeToggle />
+        </div>
       </div>
     </header>
   );

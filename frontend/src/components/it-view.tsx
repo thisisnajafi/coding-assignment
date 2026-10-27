@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { ArrowRight, Loader2, RefreshCw, Search, Send, Sparkles } from "lucide-react";
+import { ArrowRight, Inbox, Loader2, MousePointerClick, RefreshCw, Search, SearchX, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,11 +12,14 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/native-select";
 import { PlainText } from "@/components/plain-text";
+import { FinalReply } from "@/components/final-reply";
+import { TicketBody } from "@/components/ticket-body";
+import { TicketMeta } from "@/components/ticket-meta";
 import { SourceBadge, TicketBadges } from "@/components/ticket-badges";
 import { EmptyState, ErrorState, DetailSkeleton, ListSkeleton, SuggestionSkeleton } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
-import { CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS, formatDate } from "@/lib/labels";
+import { CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from "@/lib/labels";
 import { useTickets } from "@/lib/use-tickets";
 import { cn } from "@/lib/utils";
 import type { Status, Ticket } from "@/lib/types";
@@ -59,8 +62,10 @@ export function ItView({ username }: { username: string }) {
           <button
             key={s}
             onClick={() => setStatus(status === s ? "" : s)}
+            aria-pressed={status === s}
+            aria-label={`فیلتر وضعیت ${STATUS_LABELS[s]}`}
             className={cn(
-              "rounded-xl border bg-background p-3 text-start transition-colors hover:bg-accent",
+              "rounded-xl border bg-background p-3 text-start transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               status === s && "border-primary ring-2 ring-primary/20",
             )}
           >
@@ -89,26 +94,32 @@ export function ItView({ username }: { username: string }) {
           ) : !tickets ? (
             <ListSkeleton rows={4} variant="row" />
           ) : filtered.length === 0 ? (
-            <EmptyState text={tickets.length ? "تیکتی با این فیلترها یافت نشد." : "هیچ تیکتی وجود ندارد."} />
+            <EmptyState
+              icon={tickets.length ? SearchX : Inbox}
+              text={tickets.length ? "تیکتی با این فیلترها یافت نشد." : "هیچ تیکتی وجود ندارد."}
+              hint={tickets.length ? "فیلترها یا عبارت جستجو را تغییر دهید." : undefined}
+            />
           ) : (
             <ul className="space-y-2">
               {filtered.map((t) => (
-                <motion.li key={t.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <motion.li
+                  key={t.id}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                >
                   <button
                     data-testid="it-ticket-row"
                     onClick={() => setSelectedId(t.id)}
+                    aria-current={selectedId === t.id ? "true" : undefined}
                     className={cn(
-                      "w-full space-y-2 rounded-xl border bg-background p-3 text-start transition-all hover:border-primary/40 hover:shadow-sm",
+                      "w-full space-y-2 rounded-xl border bg-background p-3 text-start transition-all hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       selectedId === t.id && "border-primary ring-2 ring-primary/20",
                     )}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <span dir="auto" className="line-clamp-1 font-medium">{t.title}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">#{t.id}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {t.owner} · {formatDate(t.created_at)}
-                    </div>
+                    <span dir="auto" className="line-clamp-1 font-semibold">{t.title}</span>
+                    <TicketMeta id={t.id} owner={t.owner} createdAt={t.created_at} />
                     <TicketBadges ticket={t} />
                   </button>
                 </motion.li>
@@ -135,7 +146,7 @@ export function ItView({ username }: { username: string }) {
               </motion.div>
             ) : (
               <motion.div key="none" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <EmptyState text="برای مشاهده جزئیات، یک تیکت را انتخاب کنید." />
+                <EmptyState icon={MousePointerClick} text="برای مشاهده جزئیات، یک تیکت را انتخاب کنید." hint="پیشنهاد هوش مصنوعی و پاسخ نهایی اینجا نمایش داده می‌شود." />
               </motion.div>
             )}
           </AnimatePresence>
@@ -215,7 +226,7 @@ export function TicketDetail({
       toast.success(ok);
       return true;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "عملیات ناموفق بود.");
+      toast.error("عملیات ناموفق بود.", { description: e instanceof Error ? e.message : undefined });
       return false;
     } finally {
       setBusy(null);
@@ -230,7 +241,7 @@ export function TicketDetail({
       if (!replied) setReply(t.suggested_reply || "");
       toast.success(t.suggestion_source === "fallback" ? "سرویس AI در دسترس نبود؛ پاسخ جایگزین تولید شد." : "پیشنهاد جدید تولید شد.");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تولید پیشنهاد ناموفق بود.");
+      toast.error("تولید پیشنهاد ناموفق بود.", { description: e instanceof Error ? e.message : undefined });
     } finally {
       setBusy(null);
     }
@@ -244,17 +255,13 @@ export function TicketDetail({
             <ArrowRight /> بازگشت به فهرست
           </Button>
         )}
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <CardTitle dir="auto" className="break-words text-lg">{ticket.title}</CardTitle>
-          <span className="text-xs text-muted-foreground">
-            #{ticket.id} · {ticket.owner} · {formatDate(ticket.created_at)}
-          </span>
-        </div>
+        <CardTitle dir="auto" className="break-words text-lg leading-8">{ticket.title}</CardTitle>
+        <TicketMeta id={ticket.id} owner={ticket.owner} createdAt={ticket.created_at} />
         <TicketBadges ticket={ticket} />
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="rounded-lg bg-muted/60 p-3">
-          <PlainText text={ticket.body} className="text-sm" />
+        <div className="rounded-lg bg-muted/40 p-3">
+          <TicketBody text={ticket.body} className="text-sm" />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -337,10 +344,12 @@ export function TicketDetail({
         <div className="space-y-2">
           <Label htmlFor="final-reply">پاسخ نهایی</Label>
           {replied ? (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-              <PlainText text={ticket.final_reply} className="text-sm" />
-              <p className="mt-2 text-xs text-emerald-800">پاسخ نهایی ارسال شده و قابل ویرایش نیست.</p>
-            </div>
+            <FinalReply
+              text={ticket.final_reply || ""}
+              repliedAt={ticket.replied_at}
+              repliedBy={ticket.replied_by}
+              note="پاسخ نهایی ارسال شده و قابل ویرایش نیست."
+            />
           ) : (
             <>
               <Textarea id="final-reply" rows={6} value={reply} onChange={(e) => setReply(e.target.value)} placeholder="پاسخ نهایی را بنویسید یا پیشنهاد را ویرایش کنید…" />
