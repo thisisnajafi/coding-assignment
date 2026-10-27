@@ -25,8 +25,16 @@ Source spec: `README.md` (not modified). Status: [x] done, [ ] todo.
 - [x] `docker compose up --build`
 - [x] DOCS.md, AI_USAGE.md, TIME_LOG.md, screenshots
 
+## Extensions (user requests after first delivery)
+- [x] Skeleton loaders (lists, detail, suggestion, thread, model picker, user switcher), reduced motion
+- [x] UI polish: card hierarchy, consistent badges, collapsible body, code blocks, final reply block, validation, toasts, dark mode
+- [x] Message thread per ticket with reply-to; same access control and masking; final reply kept
+- [x] Thread-aware AI suggestion (bounded, role-labelled, untrusted-data framing)
+- [x] Provider-grouped, verified model allowlist + searchable combobox
+- [x] IT detail rework: suggestion actions (use / send / send as final), final reply shown once, readable code blocks, layout order
+
 ## Verified
-- [x] Backend: 33 pytest tests pass offline
-- [x] Frontend: 5 vitest tests pass
+- [x] Backend: 43 pytest tests pass offline
+- [x] Frontend: 22 vitest tests pass; `npm run build` and lint clean
 - [x] `docker compose up --build` on Windows (Docker Desktop), live GapGPT triage of seed tickets
 - [x] Browser E2E with Playwright: create ticket, IT reply, owner sees reply; screenshots saved

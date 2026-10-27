@@ -31,8 +31,8 @@ cd frontend && npm install && npm run dev
 ### Tests (offline, no API key)
 
 ```bash
-cd backend && pytest -q          # 33 tests, AI is mocked
-cd frontend && npm test          # vitest (5 tests)
+cd backend && pytest -q          # 43 tests, AI is mocked
+cd frontend && npm test          # vitest (22 tests)
 ```
 
 ## Screenshots
@@ -40,13 +40,17 @@ cd frontend && npm test          # vitest (5 tests)
 | | |
 |---|---|
 | Employee (desktop) | `docs/screenshots/01-employee.png` |
-| IT dashboard with AI suggestion (injection ticket) | `docs/screenshots/02-it-dashboard.png` |
+| IT detail: header + status, body, thread with final reply, suggestion panel above composer | `docs/screenshots/02-it-dashboard.png` |
 | Employee on mobile (390 px) | `docs/screenshots/03-mobile-employee.png` |
-| IT on mobile | `docs/screenshots/04-mobile-it.png` |
+| IT ticket detail on mobile | `docs/screenshots/04-mobile-it.png` |
+| Ticket conversation with reply-to quote | `docs/screenshots/05-thread.png` |
+| Skeleton loaders while data loads | `docs/screenshots/06-skeleton-loading.png` |
+| Provider-grouped model combobox | `docs/screenshots/07-model-picker.png` |
 
-Taken with Playwright (headless Chromium) against `docker compose up --build`, after an end-to-end
-run: employee creates a ticket in the UI, IT selects it and sends the final reply, employee sees it.
-The XSS sample shows as plain text (no dialog fired) and the password is shown as `[REDACTED]`.
+Taken with Playwright (headless Chromium) against `docker compose up --build` with a fresh database,
+after an end-to-end run: the employee posts a message containing a password (stored masked), IT
+replies to that message, regenerates the suggestion from the thread, and the employee sees the
+quoted reply. The XSS sample shows as plain text (no dialog fired).
 
 ## Architecture
 
@@ -61,10 +65,14 @@ validation -> store. The AI step can never make creation fail.
 
 ## Main decisions
 
+The exact AI prompt, the user-message template and a filled example are in [`PROMPTS.md`](PROMPTS.md).
+
+
 - **AI provider:** GapGPT (OpenAI-compatible, `https://api.gapgpt.app/v1`), default `gpt-4o`, JSON mode,
-  20 s timeout. IT can pick another model when regenerating a suggestion; the list comes from
-  `/models` (filtered to chat models, snapshots hidden) with a static fallback list. Requested model
-  names are checked against that list.
+  20 s timeout. When regenerating, IT can pick a model in a searchable combobox grouped by provider
+  (OpenAI, Google Gemini, Anthropic Claude, DeepSeek; 3-4 models each). Every model on the allowlist
+  was checked with a real triage call on 2026-10-27. The backend accepts only allowlisted ids (422 otherwise) and
+  shows the allowlist intersected with GapGPT's live `/models` (full allowlist if that call fails).
 - **Strict output validation:** `AITriage` pydantic model, `extra="forbid"`, enums for category
   (`hardware/network/software/access`) and priority (`low/medium/high`), case-sensitive. Any invalid
   JSON, unknown value (e.g. `CRITICAL`), missing or extra field rejects the whole AI answer.
@@ -85,6 +93,24 @@ validation -> store. The AI step can never make creation fail.
   tickets return 404, not 403, to avoid ID enumeration); employee responses never include AI fields.
   Only IT can list all tickets, change status, regenerate suggestions, list models and post the final
   reply (exactly one per ticket; a second returns 409). IT users cannot create tickets.
+- **Conversation thread (extension by user request):** the spec asks for one final reply per
+  ticket; that still works unchanged (`POST /reply`, 409 on a second one). On top of it the owner
+  and IT can exchange any number of messages, optionally replying to a specific message (quoted).
+  Messages use the same access rules (others' tickets 404) and the same secret masking. The final
+  reply is shown once, inside the thread, flagged "final reply" (the IT header only shows a short
+  note that it was sent).
+- **Using the AI suggestion (IT only):** the suggestion panel sits right above the composer. IT can
+  "use in reply" (copies it into the composer to edit), "send in thread" (posts it unchanged after
+  a confirmation) or, while no final reply exists, "send as final reply" (also after confirmation).
+  A sent suggestion is marked "used". Nothing is ever sent automatically.
+- **Thread-aware suggestions:** regenerate sends the ticket plus its own thread (chronological,
+  role-labelled `<message role="employee|it">`, oldest messages trimmed to ~6000 chars, delimiters
+  neutralised, secrets already masked). The prompt treats every message as untrusted data and asks for
+  the next IT reply. No other ticket's data is ever included. Employees never receive AI output.
+- **UI:** skeleton loaders shaped like the real cards, list, detail, thread, model picker and user switcher;
+  `prefers-reduced-motion` respected (CSS + Motion `reducedMotion="user"`); long bodies collapse
+  with "show more"; pasted English/log lines render in an LTR monospace block; toasts for all
+  actions; inline form validation; optional dark mode.
 - **Seeding:** the 3 users and 6 README tickets are created on first start through the same pipeline.
 
 ## Assumptions
