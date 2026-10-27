@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/native-select";
 import { PlainText } from "@/components/plain-text";
 import { SourceBadge, TicketBadges } from "@/components/ticket-badges";
-import { EmptyState, ErrorState, ListSkeleton } from "@/components/states";
+import { EmptyState, ErrorState, DetailSkeleton, ListSkeleton, SuggestionSkeleton } from "@/components/states";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS, formatDate } from "@/lib/labels";
 import { useTickets } from "@/lib/use-tickets";
@@ -86,7 +87,7 @@ export function ItView({ username }: { username: string }) {
           {error ? (
             <ErrorState message={error} onRetry={reload} />
           ) : !tickets ? (
-            <ListSkeleton rows={4} />
+            <ListSkeleton rows={4} variant="row" />
           ) : filtered.length === 0 ? (
             <EmptyState text={tickets.length ? "تیکتی با این فیلترها یافت نشد." : "هیچ تیکتی وجود ندارد."} />
           ) : (
@@ -118,7 +119,11 @@ export function ItView({ username }: { username: string }) {
 
         <section className={cn(!selected && "hidden lg:block")}>
           <AnimatePresence mode="wait">
-            {selected ? (
+            {!tickets && !error ? (
+              <motion.div key="loading" exit={{ opacity: 0 }}>
+                <DetailSkeleton />
+              </motion.div>
+            ) : selected ? (
               <motion.div
                 key={selected.id}
                 initial={{ opacity: 0, x: -12 }}
@@ -176,6 +181,7 @@ export function TicketDetail({
 }) {
   const [models, setModels] = useState<string[]>([DEFAULT_MODEL]);
   const [model, setModel] = useState(DEFAULT_MODEL);
+  const [modelsLoading, setModelsLoading] = useState(true);
   const [reply, setReply] = useState(ticket.final_reply || ticket.suggested_reply || "");
   const [busy, setBusy] = useState<null | "status" | "suggest" | "reply">(null);
   const replied = Boolean(ticket.final_reply);
@@ -190,7 +196,8 @@ export function TicketDetail({
       })
       .catch(() => {
         /* keep default model list */
-      });
+      })
+      .finally(() => setModelsLoading(false));
   }, [username]);
 
   useEffect(() => {
@@ -279,13 +286,24 @@ export function TicketDetail({
               {ticket.suggestion_source && <SourceBadge source={ticket.suggestion_source} />}
             </div>
             <div className="flex items-center gap-2">
-              <NativeSelect aria-label="مدل" value={model} onChange={(e) => setModel(e.target.value)} dir="ltr" className="max-w-40">
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </NativeSelect>
+              {modelsLoading ? (
+                <Skeleton data-testid="model-picker-skeleton" className="h-9 w-32 rounded-lg" />
+              ) : (
+                <NativeSelect
+                  aria-label="انتخاب مدل هوش مصنوعی"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  disabled={busy !== null}
+                  dir="ltr"
+                  className="max-w-40"
+                >
+                  {models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </NativeSelect>
+              )}
               <Button variant="outline" size="sm" onClick={regenerate} disabled={busy !== null}>
                 {busy === "suggest" ? <Loader2 className="animate-spin" /> : <RefreshCw />}
                 تولید مجدد
@@ -293,7 +311,9 @@ export function TicketDetail({
             </div>
           </div>
           <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 dark:bg-violet-950/20">
-            {ticket.suggested_reply ? (
+            {busy === "suggest" ? (
+              <SuggestionSkeleton />
+            ) : ticket.suggested_reply ? (
               <PlainText text={ticket.suggested_reply} className="text-sm" />
             ) : (
               <p className="text-sm text-muted-foreground">پیشنهادی وجود ندارد.</p>

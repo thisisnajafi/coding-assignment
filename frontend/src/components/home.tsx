@@ -1,20 +1,21 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { AppHeader } from "@/components/app-header";
 import { EmployeeView } from "@/components/employee-view";
 import { ItView } from "@/components/it-view";
-import { ListSkeleton } from "@/components/states";
+import { PageSkeleton } from "@/components/states";
 import { useUser } from "@/lib/user-context";
 
 export function Home() {
   const { current } = useUser();
   return (
-    <>
+    // reducedMotion="user" disables Motion transforms when the OS asks for reduced motion.
+    <MotionConfig reducedMotion="user">
       <AppHeader />
       <main className="mx-auto max-w-6xl px-4 py-6">
         {!current ? (
-          <ListSkeleton />
+          <PageSkeleton />
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
@@ -39,6 +40,6 @@ export function Home() {
           </AnimatePresence>
         )}
       </main>
-    </>
+    </MotionConfig>
   );
 }

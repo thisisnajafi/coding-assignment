@@ -16,6 +16,8 @@ interface UserCtx {
   users: User[];
   current: User | null;
   setUsername: (username: string) => void;
+  /** True while the user list is being fetched from the backend. */
+  loadingUsers: boolean;
 }
 
 const Ctx = createContext<UserCtx | null>(null);
@@ -23,6 +25,7 @@ const Ctx = createContext<UserCtx | null>(null);
 export function UserProvider({ children, initialUsers }: { children: React.ReactNode; initialUsers?: User[] }) {
   const [users, setUsers] = useState<User[]>(initialUsers ?? DEMO_USERS);
   const [username, setUsernameState] = useState<string | null>(null);
+  const [loadingUsers, setLoadingUsers] = useState(!initialUsers);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
@@ -33,7 +36,8 @@ export function UserProvider({ children, initialUsers }: { children: React.React
       .then((list) => list.length && setUsers(list))
       .catch(() => {
         /* backend unreachable: keep demo users */
-      });
+      })
+      .finally(() => setLoadingUsers(false));
   }, [initialUsers]);
 
   const setUsername = useCallback((u: string) => {
@@ -42,7 +46,7 @@ export function UserProvider({ children, initialUsers }: { children: React.React
   }, []);
 
   const current = users.find((u) => u.username === username) ?? null;
-  return <Ctx.Provider value={{ users, current, setUsername }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ users, current, setUsername, loadingUsers }}>{children}</Ctx.Provider>;
 }
 
 export function useUser(): UserCtx {

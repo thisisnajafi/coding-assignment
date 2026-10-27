@@ -2,11 +2,12 @@
 
 import { Headset } from "lucide-react";
 import { NativeSelect } from "@/components/native-select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ROLE_LABELS, label } from "@/lib/labels";
 import { useUser } from "@/lib/user-context";
 
 export function AppHeader() {
-  const { users, current, setUsername } = useUser();
+  const { users, current, setUsername, loadingUsers } = useUser();
   return (
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -21,6 +22,9 @@ export function AppHeader() {
         </div>
         <label className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">کاربر نمایشی:</span>
+          {loadingUsers || !current ? (
+            <Skeleton data-testid="user-switcher-skeleton" className="h-9 w-44 rounded-lg" />
+          ) : (
           <NativeSelect
             aria-label="انتخاب کاربر"
             value={current?.username ?? ""}
@@ -32,6 +36,7 @@ export function AppHeader() {
               </option>
             ))}
           </NativeSelect>
+          )}
         </label>
       </div>
     </header>

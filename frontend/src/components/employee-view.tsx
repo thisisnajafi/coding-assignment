@@ -33,7 +33,7 @@ export function EmployeeView({ username }: { username: string }) {
         {error ? (
           <ErrorState message={error} onRetry={reload} />
         ) : !tickets ? (
-          <ListSkeleton />
+          <ListSkeleton rows={3} />
         ) : tickets.length === 0 ? (
           <EmptyState text="هنوز تیکتی ثبت نکرده‌اید." />
         ) : (
