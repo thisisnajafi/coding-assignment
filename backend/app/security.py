@@ -21,6 +21,9 @@ _TOKEN_PATTERNS = [
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]{16,}=*", re.IGNORECASE),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),  # JWT
+    re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),  # AWS access key id
+    re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"),  # Slack token
 ]
 _SPECIAL = set("@#$%^&*!?_+=~")
 
